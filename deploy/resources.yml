@@ -1,0 +1,111 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: boundary-enterprise
+  labels:
+    app: nginx
+spec:
+  ports:
+  - port: 9202
+    name: proxy
+  - port: 9203
+    name: ops
+  clusterIP: None
+  selector:
+    app: boundary-enterprise
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: boundary-enterprise-config
+immutable: false
+data:
+  worker.hcl: |-
+    disable_mlock = true
+
+    hcp_boundary_cluster_id = ""
+
+    listener "tcp" {
+      address = "0.0.0.0:9202"
+      purpose = "proxy"
+    }
+
+    listener "tcp" {
+        address = "0.0.0.0:9203"
+        purpose = "ops"
+        tls_disable = true
+    }
+
+    worker {
+      controller_generated_activation_token = "env://BOUNDARY_WORKER_ACTIVATION_TOKEN"
+      auth_storage_path = "/opt/boundary/data"
+      tags {
+        type = ["openshift", "kubernetes"]
+        namespace = "application"
+      }
+    }
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: boundary-enterprise
+    app.kubernetes.io/component: boundary-enterprise
+    app.kubernetes.io/instance: boundary-enterprise
+    app.kubernetes.io/name: boundary-enterprise
+    app.kubernetes.io/part-of: boundary-enterprise
+  name: boundary-enterprise
+spec:
+  replicas: 1
+  serviceName: boundary-enterprise
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: boundary-enterprise
+  template:
+    metadata:
+      labels:
+        app: boundary-enterprise
+    spec:
+      volumes:
+        - name: boundary-enterprise-config-volume
+          configMap:
+            name: boundary-enterprise-config
+            defaultMode: 420
+        - name: boundary-enterprise-storage
+          persistentVolumeClaim:
+            claimName: boundary-enterprise-storage
+      containers:
+        - resources: {}
+          terminationMessagePath: /dev/termination-log
+          name: boundary-enterprise
+          env:
+            - name: BOUNDARY_WORKER_ACTIVATION_TOKEN
+              value: ""
+          ports:
+            - name: proxy
+              containerPort: 9202
+              protocol: TCP
+            - name: metrics
+              containerPort: 9203
+              protocol: TCP
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: boundary-enterprise-config-volume
+              mountPath: /opt/boundary/config/
+            - name: boundary-enterprise-storage
+              mountPath: /opt/boundary/data/
+          terminationMessagePolicy: File
+          image: 'quay.io/benjamin_holmes/boundary-enterprise:ubi9-amd64'
+      restartPolicy: Always
+  volumeClaimTemplates:
+  - metadata:
+      name: boundary-enterprise-storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "managed-csi"
+      resources:
+        requests:
+          storage: 1Gi
