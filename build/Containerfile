@@ -5,9 +5,8 @@ USER root
 RUN microdnf -y install yum-utils && \
     yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo && \
     microdnf -y install boundary-enterprise && \
-    mkdir -p /opt/boundary/{data,config}
-
-ADD config/worker.hcl /opt/boundary/config/
+    mkdir -p /opt/boundary/{data,config} && \
+    cp /etc/boundary.d/worker.hcl /opt/boundary/config/
 
 RUN chgrp -R 0 /usr/bin/boundary && \
     chmod -R g=u /usr/bin/boundary && \
