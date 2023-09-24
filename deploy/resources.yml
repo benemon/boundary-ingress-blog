@@ -79,6 +79,16 @@ spec:
             claimName: boundary-enterprise-storage
       containers:
         - resources: {}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9203
+              scheme: HTTP
+            initialDelaySeconds: 5
+            timeoutSeconds: 1
+            periodSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
           terminationMessagePath: /dev/termination-log
           name: boundary-enterprise
           env:
