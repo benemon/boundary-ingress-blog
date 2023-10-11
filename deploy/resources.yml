@@ -86,7 +86,17 @@ spec:
               scheme: HTTP
             initialDelaySeconds: 5
             timeoutSeconds: 1
-            periodSeconds: 5
+            periodSeconds: 15
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 9203
+              scheme: HTTP
+            initialDelaySeconds: 5
+            timeoutSeconds: 1
+            periodSeconds: 15
             successThreshold: 1
             failureThreshold: 3
           terminationMessagePath: /dev/termination-log
