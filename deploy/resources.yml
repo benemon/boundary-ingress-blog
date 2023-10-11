@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: boundary-enterprise
+  name: boundary-worker
   labels:
     app: nginx
 spec:
@@ -12,18 +12,18 @@ spec:
     name: ops
   clusterIP: None
   selector:
-    app: boundary-enterprise
+    app: boundary-worker
 ---
 kind: ConfigMap
 apiVersion: v1
 metadata:
-  name: boundary-enterprise-config
+  name: boundary-worker-configuration
 immutable: false
 data:
   worker.hcl: |-
     disable_mlock = true
 
-    hcp_boundary_cluster_id = ""
+    hcp_boundary_cluster_id = "env://HCP_BOUNDARY_CLUSTER_ID"
 
     listener "tcp" {
       address = "0.0.0.0:9202"
@@ -37,7 +37,7 @@ data:
     }
 
     worker {
-      controller_generated_activation_token = "env://BOUNDARY_WORKER_ACTIVATION_TOKEN"
+      controller_generated_activation_token = "env://CONTROLLER_GENERATED_ACTIVATION_TOKEN"
       auth_storage_path = "/opt/boundary/data"
       tags {
         type = ["openshift", "kubernetes"]
@@ -50,33 +50,33 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   labels:
-    app: boundary-enterprise
-    app.kubernetes.io/component: boundary-enterprise
-    app.kubernetes.io/instance: boundary-enterprise
-    app.kubernetes.io/name: boundary-enterprise
-    app.kubernetes.io/part-of: boundary-enterprise
-  name: boundary-enterprise
+    app: boundary-worker
+    app.kubernetes.io/component: boundary-worker
+    app.kubernetes.io/instance: boundary-worker
+    app.kubernetes.io/name: boundary-worker
+    app.kubernetes.io/part-of: boundary-worker
+  name: boundary-worker
 spec:
   replicas: 1
-  serviceName: boundary-enterprise
+  serviceName: boundary-worker
   updateStrategy:
     type: RollingUpdate
   selector:
     matchLabels:
-      app: boundary-enterprise
+      app: boundary-worker
   template:
     metadata:
       labels:
-        app: boundary-enterprise
+        app: boundary-worker
     spec:
       volumes:
-        - name: boundary-enterprise-config-volume
+        - name: boundary-worker-configuration-volume
           configMap:
-            name: boundary-enterprise-config
+            name: boundary-worker-configuration
             defaultMode: 420
-        - name: boundary-enterprise-storage
+        - name: boundary-worker-storage-volume
           persistentVolumeClaim:
-            claimName: boundary-enterprise-storage
+            claimName: boundary-worker-storage-volume
       containers:
         - resources: {}
           livenessProbe:
@@ -90,9 +90,11 @@ spec:
             successThreshold: 1
             failureThreshold: 3
           terminationMessagePath: /dev/termination-log
-          name: boundary-enterprise
+          name: boundary-worker
           env:
-            - name: BOUNDARY_WORKER_ACTIVATION_TOKEN
+            - name: CONTROLLER_GENERATED_ACTIVATION_TOKEN
+              value: ""
+            - name: HCP_BOUNDARY_CLUSTER_ID
               value: ""
           ports:
             - name: proxy
@@ -103,16 +105,16 @@ spec:
               protocol: TCP
           imagePullPolicy: Always
           volumeMounts:
-            - name: boundary-enterprise-config-volume
+            - name: boundary-worker-configuration-volume
               mountPath: /opt/boundary/config/
-            - name: boundary-enterprise-storage
+            - name: boundary-worker-storage-volume
               mountPath: /opt/boundary/data/
           terminationMessagePolicy: File
           image: 'quay.io/benjamin_holmes/boundary-worker:ubi9'
       restartPolicy: Always
   volumeClaimTemplates:
   - metadata:
-      name: boundary-enterprise-storage
+      name: boundary-worker-storage-volume
     spec:
       accessModes: [ "ReadWriteOnce" ]
       storageClassName: "managed-csi"
