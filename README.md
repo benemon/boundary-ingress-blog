@@ -7,8 +7,8 @@ The `build` directory contains the Containerfile to build the Boundary Worker co
 
 The `deploy` directory contains the Kubernetes manifest required to deploy the Boundary Worker image. Note that the following information *must* be added to the Kubernetes manifest in order for the Boundary Worker to be deployed succesfully:
 
-* `hcp_boundary_cluster_id` must be configured in the `boundary-enterprise-config` ConfigMap. This is the Cluster ID of the HCP Boundary cluster.
-* `BOUNDARY_WORKER_ACTIVATION_TOKEN` must be configured as an environment variable within the `boundary-enterprise` StatefulSet. This value is derived from the Controller-Generated Activation Token, generated as part of the process of registering a new Boundary Worker using the Controller Led Authorisation Flow.
+* `HCP_BOUNDARY_CLUSTER_ID` must be configured as an environment variable within the `boundary-worker` StatefulSet. This is the Cluster ID of the HCP Boundary cluster.
+* `CONTROLLER_GENERATED_ACTIVATION_TOKEN` must be configured as an environment variable within the `boundary-worker` StatefulSet. This value is derived from the Controller-Generated Activation Token, generated as part of the process of registering a new Boundary Worker using the Controller Led Authorisation Flow.
 
 
 
